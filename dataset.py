@@ -10,11 +10,11 @@ import cv2
 
 
 class CloudDataset(Dataset):
-    def __init__(self, image_dir: str, mask_dir: str, is_train: bool, image_height: int,
+    def __init__(self, image_dir: str, mask_dir: str, is_trained: bool, image_height: int,
                  image_width: int, apply_transform: bool = True):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
-        self.is_train = is_train
+        self.is_trained = is_trained
         self.image_height = image_height
         self.image_width = image_width
         self.apply_transform = apply_transform
@@ -27,13 +27,7 @@ class CloudDataset(Dataset):
         img_path = os.path.join(self.image_dir, self.images[index])
         mask_path: str = os.path.join(self.mask_dir, self.images[index])
         image = np.array(np.load(img_path), dtype=np.float32)
-
-        # plt.imshow(image[:, :, :3])
-        # plt.show()
-
         mask = np.array(np.load(mask_path)*1.0, dtype=np.float32)
-        # plt.imshow(mask)
-        # plt.show()
 
         # CLEAR 0 R, CLOUD 1 G, CLOUD_SHADOW 2 B - > CLEAR 0 R
         # but for this assignment classify just into two classes and consider CLOUD_SHADOW as CLEAR.
@@ -41,56 +35,38 @@ class CloudDataset(Dataset):
         mask_bin[np.where(mask[:, :, 1])] = 1.0
         mask = mask_bin.copy()
         del mask_bin
-        # plt.imshow(mask_bin, cmap='gray')
-        # plt.show()
 
-        image_selected_befor = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.float32)
-        image_selected_befor[:, :, 0] = image[:, :, 0]
-        image_selected_befor[:, :, 1] = image[:, :, 1]
-        image_selected_befor[:, :, 2] = image[:, :, 2]
-        image_selected_befor[:, :, 3] = image[:, :, 7]
+        image_selected = np.zeros((image.shape[0], image.shape[1], 3), dtype=np.float32)
+        image_selected[:, :, 0] = image[:, :, 0]
+        image_selected[:, :, 1] = image[:, :, 1]
+        image_selected[:, :, 2] = image[:, :, 2]
 
-        out = cv2.normalize(image_selected_befor[:,:,:3], None, alpha=0, beta=1,
+        out = cv2.normalize(image_selected, None, alpha=0, beta=1,
                                        norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
         # fig, ax = plt.subplots(1, 2, figsize=(15, 8))
-        # ax[0].imshow(image_selected_befor[:, :, :3])
+        # ax[0].imshow(image_selected[:, :, :3])
         # ax[0].set_title('Image before normalization')
         # ax[1].imshow(out[:, :, :3])
         # ax[1].set_title('Image after normalization')
         # plt.show()
 
-        image_selected = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.float32)
-        image_selected[:, :, 0] = out[:, :, 0]
-        image_selected[:, :, 1] = out[:, :, 1]
-        image_selected[:, :, 2] = out[:, :, 2]
-        image_selected[:, :, 3] = image[:, :, 7]
+        image_selected_norm = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.float32)
+        image_selected_norm[:, :, 0] = out[:, :, 0]
+        image_selected_norm[:, :, 1] = out[:, :, 1]
+        image_selected_norm[:, :, 2] = out[:, :, 2]
+        image_selected_norm[:, :, 3] = image[:, :, 7]
 
-        # plt.imshow(image_selected[:, :, :3])
+        image = image_selected_norm.copy()
+        del image_selected_norm
 
-
-
-        image = image_selected.copy()
-        del image_selected
-
-        if self.is_train:
+        if self.is_trained:
             train_transform = A.Compose(
                     [
                         A.Resize(height=self.image_height, width=self.image_width),
-                        # A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, always_apply=False, p=1),
-                        # A.ColorJitter(brightness=(1.1, 1.2), p=1),
-                        # A.ColorJitter(contrast=(1.1, 1.4), p=1),
-                        # A.ColorJitter(saturation=(1,1.1), p=1),
-                        # A.ColorJitter(brightness=0, contrast=(1, 5), saturation=0, hue=0),
-                        # A.Posterize(num_bits=(0, 5), p=0.7),
                         A.Rotate(limit=35, p=1),
                         A.HorizontalFlip(p=1),
                         A.VerticalFlip(p=1),
-                        # A.Normalize(
-                        #     mean=(0.5, 0.5, 0.5),
-                        #     std=(0.5, 0.5, 0.5),
-                        #     max_pixel_value=1.0,
-                        #     p=1.0),
                         ToTensorV2(),
                     ],
                 )
@@ -98,11 +74,6 @@ class CloudDataset(Dataset):
             train_transform = A.Compose(
                     [
                         A.Resize(height=self.image_height, width=self.image_width),
-                        # A.Normalize(
-                        #     mean=(0.5, 0.5, 0.5),
-                        #     std=(0.5, 0.5, 0.5),
-                        #     max_pixel_value=1.0,
-                        #     p=1.0),
                         ToTensorV2(),
                     ],
                 )
@@ -130,7 +101,7 @@ class CloudDataset(Dataset):
 
             # fig, ax = plt.subplots(2, 2, figsize=(15, 8))
             # # mask_show = torch.concat((mask, mask[0:1, :, :]*0), dim=0)
-            # ax[0, 0].imshow(image_selected[:, :, :3])
+            # ax[0, 0].imshow(image_selected_norm[:, :, :3])
             # ax[0, 0].set_title('Image before augmentation')
             # ax[0, 1].imshow(mask)
             # ax[0, 1].set_title('Mask before augmentation')

@@ -8,10 +8,10 @@ from os.path import isfile, join
 
 
 # get all paths from folder
-directory_masks = 'data/cloud_masks/'
+directory_masks = 'input_data/cloud_masks/'
 masks = [f for f in listdir(directory_masks) if isfile(join(directory_masks, f))]
 
-directory_img = 'data/subscenes/'
+directory_img = 'input_data/subscenes/'
 # directory_img = 'C:/Users/Tescan_lab/Downloads/4172871/subscenes'
 images = [f for f in listdir(directory_img) if isfile(join(directory_img, f))]
 

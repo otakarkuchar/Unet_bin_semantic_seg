@@ -8,6 +8,8 @@ from dataset import CloudDataset
 
 # Hyperparameters
 _DEVICE: str = "cpu"
+_IMG_DIR: str = 'data/valid_images/'
+_MASK_DIR: str = 'data/valid_masks/'
 
 # Load the ONNX model
 onnx_model_path = "interfer_model.onnx"
@@ -19,29 +21,24 @@ def sigmoid(input_array: np.ndarray) -> np.ndarray:
     Sigmoid activation function
     :type input_array: np.ndarray
     :param input_array: output from model
-    :return: 
+    :return: input_data after sigmoid activation function
     """
     return 1/(1 + np.exp(-input_array))
 
 
-_VALID_IMG_DIR: str = 'data/valid_images/'
-_VALID_MASK_DIR: str = 'data/valid_masks/'
 valid_set = CloudDataset(
-    _VALID_IMG_DIR,
-    _VALID_MASK_DIR,
-    False,
-    224,
-    224,
-    False)
+    image_dir=_IMG_DIR,
+    mask_dir=_MASK_DIR,
+    is_trained=False,
+    image_width=224,
+    image_height=224,
+    apply_transform=False)
+
 train_loader = DataLoader(valid_set, batch_size=14, shuffle=True)
-# input_data = valid_set[0][0]
 for data in train_loader:
     img, mask = data
 
-
     if _DEVICE == "cpu":
-        # img = img.unsqueeze(0).permute(0, 2, 3, 1).detach().cpu().numpy()
-        # img = img.cpu().permute(2, 3, 0).detach().numpy()
         img = img.cpu().detach().numpy()
         img = torch.randn(20, 4, 224, 224).detach().cpu().numpy()
         mask = mask.cpu().detach().numpy()
