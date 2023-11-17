@@ -27,8 +27,9 @@ _NUM_EPOCHS: int = 1000
 _NUM_WORKERS: int = 2
 _IMAGE_HEIGHT: int = 224
 _IMAGE_WIDTH: int = 224
-_LOAD_MODEL: bool = False
-_NAME_OF_LOAD_MODEL: str = "model_dice_45.pth.tar"
+_LOAD_MODEL: bool = True
+_NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_dice_483.pth.tar"
+# _NAME_OF_LOAD_MODEL: str = "my_checkpointdice547.pth.tar"
 _TRAIN_IMG_DIR: str = 'data/train_images/'
 _TRAIN_MASK_DIR: str = 'data/train_masks/'
 _VALID_IMG_DIR: str = 'data/valid_images/'
@@ -63,6 +64,8 @@ model = UNet(in_channels=4, out_channels=1).to(_DEVICE)
 
 if _LOAD_MODEL and os.path.exists(_NAME_OF_LOAD_MODEL):
     load_checkpoint(torch.load(_NAME_OF_LOAD_MODEL), model)
+    print("========= Model loaded successfully =========")
+
 
 # 3) Loss and optimizer
 if _LOSS == 'dice':

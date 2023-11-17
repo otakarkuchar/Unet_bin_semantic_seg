@@ -111,6 +111,9 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
     dice_score = 0
     val_loss = 0.0
     valid_losses = []
+    jacaaard_similarity_dataset = 0
+    dice_score_dataset = 0
+    accuracy_dataset = 0
     with torch.no_grad():
         for idx, data in enumerate(loader):
             x, target = data
@@ -126,10 +129,13 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
             x = (x > 0.5).float()
 
             dice_coef = dice(target, x)
+            dice_score_dataset += dice_coef
             acuracy = accuracy(target, x)
+            accuracy_dataset += acuracy
             jacaard_similarity = jacard_similarity(target, x)
+            jacaaard_similarity_dataset += jacaard_similarity
 
-            print(f' Metrics for images fig. n.{idx} |'
+            print(f' Metrics for images batch of images n.{idx} |'
                   f'epoch = {epoch:d}| accuracy = {acuracy:.5f}, dice = {dice_coef:.5f} '
                   f'jacaard_similarity = {jacaard_similarity:.5f}')
 
@@ -137,14 +143,15 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
             num_correct += (x == target).sum()
             num_pixels += torch.numel(x)
 
-            # compute dice score for all images in batch
-            dice_score += (2 * (x * target).sum()) / (
-                    (x + target).sum() + 1e-8
-            )
-        avg_val_loss = val_loss / len(loader)
+        print(f' Mean of metrics  | dice = {dice_score_dataset/len(loader):.5f}, '
+              f'accuracy = {accuracy_dataset/len(loader):.5f}, '
+              f'jacaard_similarity = {jacaaard_similarity_dataset/len(loader):.5f}')
 
-        print(f"Correct px are {num_correct}/{num_pixels} with accuracy {num_correct / num_pixels * 100:.2f} % "
-              f"|| Summary Dice score on validation data is: {dice_score / len(loader):.5f}")
+        print(f"Correct px are {num_correct}/{num_pixels} with accuracy "
+              f"{num_correct / num_pixels * 100:.2f} % for all images in batch")
+
+
+        avg_val_loss = val_loss / len(loader)
 
     model.train()
     return avg_val_loss, valid_losses

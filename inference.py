@@ -10,9 +10,9 @@ _PATH_TO_ONNX_MODEL: str = "my_model_checkpoint_dice_483.onnx"
 _TEST_IMG_DIR: str = 'data/valid_images/'
 _TEST_MASK_DIR: str = 'data/valid_masks/'
 _BATCH_SIZE_TEST_DATA: int = 16
-_PLOT_RESULTS = True
-_SAVE_RESULTS = True
-_COMPUTE_METRICS_AND_PRINT = True
+_PLOT_RESULTS: bool= True
+_SAVE_RESULTS: bool = True
+_COMPUTE_METRICS_AND_PRINT: bool = True
 _DEVICE: str = "cpu"
 
 
