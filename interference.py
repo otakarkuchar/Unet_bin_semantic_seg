@@ -105,7 +105,7 @@ def run_inference(test_loader) -> None:
                 if _SAVE_RESULTS:
                     if not os.path.exists("results"):
                         os.mkdir("results")
-                    plt.savefig(f"results/Result of interference {i} of "
+                    plt.savefig(f"results/Result of inference {i} of "
                                 f"batch {idx_batch+1} of {len(test_loader)}.png")
                 plt.show()
                 plt.pause(0.1)
