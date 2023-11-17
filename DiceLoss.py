@@ -13,6 +13,6 @@ class DiceLoss(nn.Module):
         flat_gt = y_true.view(-1)
         intersection = torch.sum(flat_predicted * flat_gt)
 
-        return 1 - ((2. * intersection + self.smooth) /
+        return 1.0 - ((2. * intersection + self.smooth) /
                     (torch.sum(flat_predicted) + torch.sum(flat_gt) + self.smooth))
 

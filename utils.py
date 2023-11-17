@@ -1,14 +1,9 @@
 import torch
 import torchvision
-# from dataset import CarvanaDataset
-from torch.utils.data import DataLoader
-import torch.nn as nn
-import torch.nn.functional as F
-from torchvision import datasets, utils, transforms
-from sklearn.metrics import confusion_matrix
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from typing import Tuple
 
 
 def save_checkpoint(state: dict, model, folder_save_model=".//saved_models//", device="cpu",
@@ -60,20 +55,6 @@ def load_checkpoint(checkpoint, model) -> None:
     model.load_state_dict(checkpoint["state_dict"])
 
 
-def precision_score(target, prediction) -> float:
-    intersect = np.sum(prediction * target)
-    total_pixel_pred = np.sum(prediction)
-    precision = np.mean(intersect / total_pixel_pred)
-    return round(precision, 3)
-
-
-def recall_score(target, prediction) -> float:
-    intersect = np.sum(prediction * target)
-    total_pixel_truth = np.sum(target)
-    recall = np.mean(intersect / total_pixel_truth)
-    return round(recall, 3)
-
-
 def accuracy(targets, predictions) -> float:
     correct = (predictions == targets).sum().item()
     total = targets.numel()
@@ -98,20 +79,38 @@ def dice(target, prediction) -> float:
 
     return score
 
+def jacard_similarity(target, prediction) -> float:
+    """
+     Intersection-Over-Union (IoU), also known as the Jaccard Index
+    :param target: target mask
+    :param prediction: prediction mask from model
+    :return: jacard similarity
+    """
+    flat_predicted = prediction.view(-1)
+    flat_gt = target.view(-1)
 
-def check_accuracy(loader, model, device="cuda", epoch=0) -> None:
+    intersection = torch.sum(flat_gt * flat_predicted)
+    union = torch.sum((flat_gt + flat_predicted) - (flat_gt * flat_predicted))
+    return intersection / union
+
+
+def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=0) -> Tuple[float, list]:
     """
     Checking accuracy of model
     :param loader: valid / train loader
     :param model: trained model
     :param device: gpu/cpu
-    :param epoch: n. epoch
+    :param epoch: epoch
+    :param num_epochs: n. epochs to train
+    :param criterion: loss function
     :return: None
     """
     model.eval()
     num_correct = 0
     num_pixels = 0
     dice_score = 0
+    val_loss = 0.0
+    valid_losses = []
     with torch.no_grad():
         for idx, data in enumerate(loader):
             x, target = data
@@ -120,17 +119,19 @@ def check_accuracy(loader, model, device="cuda", epoch=0) -> None:
 
             x = model(x)
             x = torch.sigmoid(x)
+            loss = criterion(x, target)
+            val_loss += loss.item()
+            valid_losses.append(loss.item())
+
             x = (x > 0.5).float()
 
             dice_coef = dice(target, x)
             acuracy = accuracy(target, x)
+            jacaard_similarity = jacard_similarity(target, x)
 
-            precision_score_ = precision_score(target.cpu().detach().numpy().flatten(), x.cpu().detach().numpy().flatten())
-            recall_score_ = recall_score(target.cpu().detach().numpy().flatten(), x.cpu().detach().numpy().flatten())
-
-            print(f' Metrics for images n.{idx}:'
-                  f'epoch = {epoch + 1:d}, precision = {precision_score_:.5f}, '
-                  f'recall = {recall_score_:.5f}, 'f'accuracy = {acuracy:.5f}, dice = {dice_coef:.5f}')
+            print(f' Metrics for images fig. n.{idx} |'
+                  f'epoch = {epoch:d}| accuracy = {acuracy:.5f}, dice = {dice_coef:.5f} '
+                  f'jacaard_similarity = {jacaard_similarity:.5f}')
 
             # compute accuracy for all images in batch
             num_correct += (x == target).sum()
@@ -140,13 +141,13 @@ def check_accuracy(loader, model, device="cuda", epoch=0) -> None:
             dice_score += (2 * (x * target).sum()) / (
                     (x + target).sum() + 1e-8
             )
+        avg_val_loss = val_loss / len(loader)
 
-        print(f"Got {num_correct}/{num_pixels} with accuracy for all "
-              f"valid data is: {num_correct / num_pixels * 100:.2f}")
-        print(f"Dice score for all valid data: {dice_score / len(loader)}")
+        print(f"Correct px are {num_correct}/{num_pixels} with accuracy {num_correct / num_pixels * 100:.2f} % "
+              f"|| Summary Dice score on validation data is: {dice_score / len(loader):.5f}")
 
     model.train()
-
+    return avg_val_loss, valid_losses
 
 def save_predictions_as_images(loader, model, folder="saved_images/", epoch=0, device="cuda") -> None:
     """
@@ -174,3 +175,53 @@ def save_predictions_as_images(loader, model, folder="saved_images/", epoch=0, d
         torchvision.utils.save_image(x, f"{folder}/pred_{idx}_epoch{epoch}.png")
         torchvision.utils.save_image(target, f"{folder}{idx}.png")
     model.train()
+
+def train_val_loss_as_graph(avg_train_loss, avg_val_loss, train_losses, val_losses, epoch, num_epochs)-> None:
+    """
+    Save train and validation losses as graph
+    :param train_losses: train losses for epoch
+    :param val_losses: validation losses for epoch
+    :param epoch: actual epoch
+    :param num_epochs: n. epochs to train
+    :return: None
+    """
+    plt.figure(figsize=(10, 6))
+    # Smooth the loss curves for better visualization
+    smoothing_factor = 5
+    #"Increased Smoothing: A higher smoothing_factor means that you're averaging losses over more epochs. " \
+    #"Consequently, the resulting loss curve becomes smoother as it considers a broader range of epochs to compute the average. " \
+    smoothed_train_losses = [
+        sum(train_losses[i - smoothing_factor:i]) / smoothing_factor if i > smoothing_factor else sum(
+            train_losses[:i + 1]) / (i + 1) for i in range(len(train_losses))]
+    smoothed_valid_losses = [
+        sum(val_losses[i - smoothing_factor:i]) / smoothing_factor if i > smoothing_factor else sum(
+            val_losses[:i + 1]) / (i + 1) for i in range(len(val_losses))]
+
+    plt.plot(smoothed_train_losses, label='Training Loss')
+    plt.plot(smoothed_valid_losses, label='Validation Loss')
+
+    # plt.plot(epoch, smoothed_train_losses, label='Training Loss')
+    # plt.plot(epoch, smoothed_valid_losses, label='Validation Loss')
+
+    # Highlight minimum validation loss
+    min_valid_loss = min(smoothed_valid_losses)
+    min_valid_loss_epoch = smoothed_valid_losses.index(min_valid_loss)
+    plt.scatter(min_valid_loss_epoch, min_valid_loss, color='red', marker='o', label='Min Validation Loss')
+
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.ylim(0, max(max(smoothed_train_losses), max(smoothed_valid_losses)) + 0.1)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    if not os.path.exists('.//loses//'):
+        os.mkdir('.//loses//')
+    plt.savefig(f'.//loses//combined_loss_{epoch}.png')
+    plt.close()
+
+    print(f'Epoch [{epoch}/{num_epochs}], '
+          f'Training Loss: {avg_train_loss:.4f}, '
+          f'Validation Loss: {avg_val_loss:.4f}, '
+          f'Min Validation Loss at Epoch: {min_valid_loss_epoch} ({min_valid_loss:.4f})')

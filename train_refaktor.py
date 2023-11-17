@@ -34,8 +34,8 @@ PIN_MEMORY = True
 LOAD_MODEL = False
 TRAIN_IMG_DIR = 'data/subscenes/'
 TRAIN_MASK_DIR = 'data/cloud_masks/'
-# VAL_IMG_DIR = "data/val_images"
-# VAL_MASK_DIR = "data/val_masks"
+# VAL_IMG_DIR = "input_data/val_images"
+# VAL_MASK_DIR = "input_data/val_masks"
 
 
 
@@ -74,12 +74,12 @@ plot_loss = []
 # Train Network
 for epoch in range(NUM_EPOCHS):
     loop = tqdm(train_loader)
-    # for batch_idx, (data, targets) in enumerate(train_loader):
-    # for batch_idx, (data, targets) in enumerate(loop):
+    # for batch_idx, (input_data, targets) in enumerate(train_loader):
+    # for batch_idx, (input_data, targets) in enumerate(loop):
     for index, batch in enumerate(loop):
         data, targets = batch
 
-        # plt.imshow(data[0].permute(1,2,0))
+        # plt.imshow(input_data[0].permute(1,2,0))
         # plt.show()
         if index == 90:
             edit_optimizer(optimizer, lr=0.0001)
@@ -98,7 +98,7 @@ for epoch in range(NUM_EPOCHS):
         targets = targets.float().to(device=DEVICE)
 
         # # forward
-        # output = model(data)
+        # output = model(input_data)
         # loss = criterion(output, targets)
 
         # forward
@@ -112,7 +112,7 @@ for epoch in range(NUM_EPOCHS):
             # fig, ax = plt.subplots(1, 3, figsize=(15, 8))
             # ax[0].imshow(output[0].cpu().permute(1, 2, 0).detach().numpy().astype(np.float32))
             # ax[1].imshow(targets[0].cpu().permute(1, 2, 0).detach().numpy().astype(np.float32))
-            # ax[2].imshow(data[0][:3].cpu().permute(1, 2, 0).detach().numpy().astype(np.float32))
+            # ax[2].imshow(input_data[0][:3].cpu().permute(1, 2, 0).detach().numpy().astype(np.float32))
             # plt.show()
 
             # loss = dice_loss(output, targets)

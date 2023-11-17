@@ -64,9 +64,9 @@ class CloudDataset(Dataset):
             train_transform = A.Compose(
                     [
                         A.Resize(height=self.image_height, width=self.image_width),
-                        A.Rotate(limit=35, p=1),
-                        A.HorizontalFlip(p=1),
-                        A.VerticalFlip(p=1),
+                        A.Rotate(limit=35, p=0.5),
+                        A.HorizontalFlip(p=0.5),
+                        A.VerticalFlip(p=0.5),
                         ToTensorV2(),
                     ],
                 )

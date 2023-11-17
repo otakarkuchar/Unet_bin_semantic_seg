@@ -9,21 +9,21 @@ from utils import (
     save_checkpoint,
     check_accuracy,
     save_predictions_as_images,
-)
+    train_val_loss_as_graph)
 from DiceLoss import DiceLoss
 import matplotlib.pyplot as plt
 import os
 import torch.onnx
 
 # Hyperparameters
-_LEARNING_RATE: float = 0.001
+_LEARNING_RATE: float = 0.0001
 _DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 _LOSS: str = 'dice'
-_LOSS: str = 'mse'
+# _LOSS: str = 'mse'
 # _LOSS = 'cross_entropy'
 # _LOSS: str = 'bce'
 _BATCH_SIZE: int = 16
-_NUM_EPOCHS: int = 30000
+_NUM_EPOCHS: int = 1000
 _NUM_WORKERS: int = 2
 _IMAGE_HEIGHT: int = 224
 _IMAGE_WIDTH: int = 224
@@ -33,7 +33,6 @@ _TRAIN_IMG_DIR: str = 'data/train_images/'
 _TRAIN_MASK_DIR: str = 'data/train_masks/'
 _VALID_IMG_DIR: str = 'data/valid_images/'
 _VALID_MASK_DIR: str = 'data/valid_masks/'
-
 
 # 1) Load Data
 train_set = CloudDataset(
@@ -79,25 +78,28 @@ else:
 
 optimizer = optim.Adam(model.parameters(), lr=_LEARNING_RATE)
 
+
 def edit_optimizer(optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
 
 # 4) Check accuracy before training
-check_accuracy(val_loader, model, device=_DEVICE, epoch=0)
+check_accuracy(loader=val_loader, model=model, criterion=criterion, device=_DEVICE,
+               epoch=0, num_epochs=_NUM_EPOCHS)
 
 # 5) Train Network
 scaler = torch.cuda.amp.GradScaler()
 train_losses = []
-valid_losses = []
+val_losses = []
 for epoch in range(_NUM_EPOCHS):
+    train_loss = 0.0
     loop = tqdm(train_loader)
     for index, data in enumerate(loop):
         input_data, targets = data
 
-        if epoch == 2:
-            edit_optimizer(optimizer, lr=0.0001)
+        if epoch == 20:
+            edit_optimizer(optimizer, lr=0.00001)
 
         input_data = input_data.to(device=_DEVICE)
         targets = targets.to(device=_DEVICE)
@@ -107,7 +109,8 @@ for epoch in range(_NUM_EPOCHS):
             output = model(input_data)
             output = torch.sigmoid(output)
             loss = criterion(output, targets)
-            train_losses.append(loss.item())
+
+            train_loss += loss.item()
 
         # backward
         optimizer.zero_grad()
@@ -117,22 +120,29 @@ for epoch in range(_NUM_EPOCHS):
 
         loop.set_postfix(loss=loss.item())
 
-    checkpoint = {
-        "state_dict": model.state_dict(),
-        "optimizer": optimizer.state_dict(),
-    }
+    # 6) Check accuracy after training
+    avg_val_loss, valid_losses = check_accuracy(loader=val_loader, model=model, criterion=criterion, device=_DEVICE,
+                                                epoch=epoch, num_epochs=_NUM_EPOCHS)
 
-    if epoch % 1 == 0:
+    # 7) create graph of train and validation loss
+    val_losses.append(avg_val_loss)
+    avg_train_loss = train_loss / len(train_loader)
+    train_losses.append(avg_train_loss)
+    train_val_loss_as_graph(avg_train_loss=avg_train_loss, avg_val_loss=avg_val_loss, train_losses=train_losses,
+                            val_losses=val_losses, epoch=epoch, num_epochs=_NUM_EPOCHS)
+
+    save_predictions_as_images(
+        loader=val_loader, model=model, folder="saved_images/", epoch=epoch, device=_DEVICE)
+
+    if epoch == 0:
+        the_best_loss = avg_val_loss
+
+    if avg_val_loss < the_best_loss:
+        the_best_loss = avg_val_loss
+        # if epoch % 1 == 0:
+        checkpoint = {
+            "state_dict": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+        }
         save_checkpoint(state=checkpoint, model=model, device=_DEVICE, loss=_LOSS, epoch=epoch,
                         folder_save_model=".//saved_models//", filename="my_model_checkpoint")
-
-        check_accuracy(loader=val_loader, model=model, device=_DEVICE, epoch=epoch)
-
-        save_predictions_as_images(
-            loader=val_loader, model=model, folder="saved_images/", epoch=epoch, device=_DEVICE)
-
-        plt.plot(train_losses, label='loss')
-        plt.savefig(f'loss{_LOSS}.png')
-        plt.close()
-
-    print(f"Epoch {epoch} Train loss: {loss.item()}")
