@@ -63,73 +63,20 @@ def accuracy(targets, predictions) -> float:
     return round(accuracy, 3)
 
 
-def dice(target, prediction) -> float:
+def dice(target, prediction, smooth = 1.) -> float:
     """
     Compute dice coefficient between target and prediction
     :param target: target mask
     :param prediction: prediction mask from model
     :return: dice coefficient
     """
-    smooth = 1.
-    # dice = []
 
-    # for i in range(len(target)):
-    #     fig, ax = plt.subplots(1, 2, figsize=(15, 8))
-    #     ax[0].imshow(target[i].cpu().permute(1, 2, 0).detach().numpy())
-    #     ax[1].imshow(prediction[i].cpu().permute(1, 2, 0).detach().numpy())
-    #     plt.show()
-    #
-    #     flat_predicted = prediction[i].view(-1)
-    #     flat_gt = target[i].view(-1)
-    #     intersection = torch.sum(flat_predicted * flat_gt)
-    #     score = (2. * intersection + smooth) / (torch.sum(flat_predicted) + torch.sum(flat_gt) + smooth)
-    #     # print(f'Dice score for image n.{i} is {score:.5f}')
-    #     dice.append(score)
-    #
-    # print(f'Mean dice score for batch is {torch.mean(torch.stack(dice)):.5f}')
-    # # prediction = prediction.squeeze(1)
-    # # target = target.squeeze(1)
-    # flat_predicted = prediction.view(-1)
-    # flat_gt = target.view(-1)
-    # intersection = torch.sum(flat_predicted * flat_gt)
-    # score = (2. * intersection + smooth) / (torch.sum(flat_predicted) + torch.sum(flat_gt) + smooth)
-    # print(f'Dice score for image is {score:.5f}')
-    #
-    # smooth = 1.
-    #
-    # # have to use contiguous since they may from a torch.view op
-    # iflat = prediction.contiguous().view(-1)
-    # tflat = target.contiguous().view(-1)
-    # intersection = (iflat * tflat).sum()
-    #
-    # # A_sum = torch.sum(iflat * iflat)
-    # # B_sum = torch.sum(tflat * tflat)
-    # A_sum = torch.sum(tflat)
-    # B_sum = torch.sum(iflat)
-    #
-    # dice_git = ((2. * intersection + smooth) / (A_sum + B_sum + smooth))
-    # print(f'Dice score for image is {dice_git:.5f}')
-    #
-    #
-    # numerator = 2 * torch.sum(prediction * target)
-    # denominator = torch.sum(prediction + target)
-    # dice_net = (numerator + 1) / (denominator + 1)
-    # print(f'Dice score for image is {dice_net:.5f}')
-
-
-    import torchmetrics
-    # dic = torchmetrics.functional.f1(target, prediction, num_classes=2, average='macro', mdmc_average='global')
-    # from torchmetrics import F1Score
-    # f1 = F1Score(num_classes=2, task='binary')
-    # f1(prediction, target)
-
-
-    pred = prediction.contiguous()
+    prediction = prediction.contiguous()
     target = target.contiguous()
 
-    intersection = (pred * target).sum(dim=2).sum(dim=2)
+    intersection = (prediction * target).sum(dim=2).sum(dim=2)
 
-    loss = (2. * intersection + smooth) / (pred.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + smooth)
+    loss = (2. * intersection + smooth) / (prediction.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + smooth)
     score = loss.mean()
 
     return score
@@ -146,6 +93,7 @@ def jacard_similarity(target, prediction) -> float:
 
     intersection = torch.sum(flat_gt * flat_predicted)
     union = torch.sum((flat_gt + flat_predicted) - (flat_gt * flat_predicted))
+
     return intersection / union
 
 
@@ -163,7 +111,6 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
     model.eval()
     num_correct = 0
     num_pixels = 0
-    dice_score = 0
     val_loss = 0.0
     valid_losses = []
     jacaaard_similarity_dataset = 0
@@ -183,7 +130,7 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
 
             x = (x > 0.5).float()
 
-            dice_coef = dice(target, x)
+            dice_coef = dice(target, x, smooth=1.)
             dice_score_dataset += dice_coef
             acuracy = accuracy(target, x)
             accuracy_dataset += acuracy
@@ -259,9 +206,6 @@ def train_val_loss_as_graph(avg_train_loss, avg_val_loss, train_losses, val_loss
 
     plt.plot(smoothed_train_losses, label='Training Loss')
     plt.plot(smoothed_valid_losses, label='Validation Loss')
-
-    # plt.plot(epoch, smoothed_train_losses, label='Training Loss')
-    # plt.plot(epoch, smoothed_valid_losses, label='Validation Loss')
 
     # Highlight minimum validation loss
     min_valid_loss = min(smoothed_valid_losses)

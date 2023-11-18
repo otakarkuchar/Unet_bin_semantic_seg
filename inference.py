@@ -6,16 +6,13 @@ from torch.utils.data import DataLoader
 from dataset import CloudDataset
 
 # Hyperparameters
-_PATH_TO_ONNX_MODEL: str = "my_model_checkpoint_dice_382.onnx"
-_PATH_TO_ONNX_MODEL: str = "my_model_checkpoint_mse_71.onnx"
-_TEST_IMG_DIR: str = 'data/train_images/'
+_PATH_TO_ONNX_MODEL: str = "my_model_checkpoint.onnx"
 _TEST_IMG_DIR: str = 'data/valid_images/'
-_TEST_MASK_DIR: str = 'data/train_masks/'
 _TEST_MASK_DIR: str = 'data/valid_masks/'
 _BATCH_SIZE_TEST_DATA: int = 16
-_IMSHOW_RESULTS: bool = True
+_IMSHOW_RESULTS: bool = False
 _SAVE_RESULTS: bool = True
-_COMPUTE_METRICS_AND_PRINT: bool = True
+_VERBOSE_METRICS: bool = True
 
 
 def sigmoid(input_array: np.ndarray) -> np.ndarray:
@@ -25,7 +22,9 @@ def sigmoid(input_array: np.ndarray) -> np.ndarray:
     :param input_array: output from model
     :return: input_data after sigmoid activation function
     """
-    return 1/(1 + np.exp(-input_array))
+    score = 1/(1 + np.exp(-input_array))
+
+    return score
 
 
 def get_data(test_img_dir: str, test_mask_dir: str, batch_size: int) -> DataLoader:
@@ -57,21 +56,42 @@ def dice(prediction: np.ndarray, target: np.ndarray, smooth=1.) -> float:
     target = target.reshape(-1)
     intersection = np.sum(prediction * target)
     dice = (2. * intersection + smooth) / (np.sum(prediction) + np.sum(target) + smooth)
-    # print(f" Dice score is {dice}")
-
-
-    # prediction = np.asarray(prediction).astype(np.bool)
-    # target = np.asarray(target).astype(np.bool)
-    # im_sum = prediction.sum() + target.sum()
-    # # Compute Dice coefficient
-    # intersection = np.logical_and(prediction, target)
-    #
-    # dice2 = 2. * intersection.sum() / im_sum
-    # print(f" Dice score is {dice2}")
-
-
 
     return dice
+
+
+def show_results_or_save(show_original_img: np.ndarray, target_mask: np.ndarray, output: np.ndarray,
+                 i: int, idx_batch: int) -> None:
+    """
+    Show results of inference
+    :param show_original_img: original image
+    :param target_mask: target mask
+    :param output: output from model
+    :param i: index of image in batch
+    :param idx_batch: index of batch
+    :return: None
+    """
+    fig, ax = plt.subplots(1, 3)
+    ax[0].imshow(show_original_img)
+    ax[0].set_title('Original image')
+    ax[1].imshow(target_mask, cmap='gray', vmin=0.0, vmax=1.0)
+    ax[1].set_title('Ground truth target')
+    ax[2].imshow(output, cmap='gray', vmin=0.0, vmax=1.0)
+    ax[2].set_title('Predicted')
+    for a in ax:
+        a.set_xticks([])
+        a.set_yticks([])
+
+    if _SAVE_RESULTS:
+        if not os.path.exists("results"):
+            os.mkdir("results")
+        plt.savefig(f"results/Result of inference {i} of "
+                    f"batch {idx_batch + 1} of {len(test_loader)}.png")
+
+    if _IMSHOW_RESULTS:
+        plt.show()
+        plt.pause(0.1)
+    plt.close(fig)
 
 
 def run_inference(test_loader: object) -> None:
@@ -99,49 +119,22 @@ def run_inference(test_loader: object) -> None:
             target_mask = target[i][0].astype(np.float32)
             show_original_img = np.transpose(input_data[i][:3], (1, 2, 0))
 
-            # test = np.ones((224, 224), dtype=np.uint8)*255
-            # test[:,1] = 0
-            import cv2
-            # test = cv2.normalize(src=test, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-            # target_mask = cv2.normalize(src=target_mask, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-            # plt.imshow(test, cmap='gray')
+            if _IMSHOW_RESULTS or _SAVE_RESULTS:
+                show_results_or_save(show_original_img, target_mask, output, i, idx_batch)
 
-
-            if _IMSHOW_RESULTS:
-                fig, ax = plt.subplots(1, 3)
-                ax[0].imshow(show_original_img)
-                ax[0].set_title('Original image')
-                ax[1].imshow(target_mask, cmap='gray', vmin=0.0, vmax=1.0)
-                ax[1].set_title('Ground truth target')
-                ax[2].imshow(output, cmap='gray', vmin=0.0, vmax=1.0)
-                ax[2].set_title('Predicted')
-                for a in ax:
-                    a.set_xticks([])
-                    a.set_yticks([])
-
-                if _SAVE_RESULTS:
-                    if not os.path.exists("results"):
-                        os.mkdir("results")
-                    plt.savefig(f"results/Result of inference {i} of "
-                                f"batch {idx_batch+1} of {len(test_loader)}.png")
-                plt.show()
-                plt.pause(0.1)
-                plt.close(fig)
-
-            if _COMPUTE_METRICS_AND_PRINT:
+            if _VERBOSE_METRICS:
                 dice_score = dice(output, target_mask)
-                print(f" Dice score for interference {i} of batch "
-                      f"{idx_batch+1} of {_BATCH_SIZE_TEST_DATA} is {dice_score}")
+                # print(f" Dice score for interference {i} of batch "
+                #       f"{idx_batch+1} of {_BATCH_SIZE_TEST_DATA} is {dice_score}")
                 dice_all_data.append(dice_score)
                 dice_batch.append(dice_score)
 
-
         print(f"Batch {idx_batch+1} of {len(test_loader)} done.")
 
-        if _COMPUTE_METRICS_AND_PRINT:
+        if _VERBOSE_METRICS:
             print(f"Mean dice score for batch {idx_batch+1} is {np.mean(dice_batch)}")
 
-    if _COMPUTE_METRICS_AND_PRINT:
+    if _VERBOSE_METRICS:
         print("=====================================================")
         print("Summary: ")
         print(f"Total number of batches is {len(test_loader)}")

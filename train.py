@@ -16,21 +16,19 @@ import os
 import torch.onnx
 
 # Hyperparameters
-_LEARNING_RATE: float = 0.00001
+_LEARNING_RATE: float = 0.000001
 _DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-# _LOSS: str = 'dice'
-_LOSS: str = 'mse'
+_LOSS: str = 'dice'
+# _LOSS: str = 'mse'
 # _LOSS = 'cross_entropy'
 # _LOSS: str = 'bce'
 _BATCH_SIZE: int = 16
-_NUM_EPOCHS: int = 1000
+_NUM_EPOCHS: int = 100
 _NUM_WORKERS: int = 2
 _IMAGE_HEIGHT: int = 224
 _IMAGE_WIDTH: int = 224
 _LOAD_MODEL: bool = True
-# _NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_mse_51.pth.tar"
-_NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_mse_135.pth.tar"
-# _NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_dice_382.pth.tar"
+_NAME_OF_LOAD_MODEL: str = "my_model_checkpoint.pth.tar"
 _TRAIN_IMG_DIR: str = 'data/train_images/'
 _TRAIN_MASK_DIR: str = 'data/train_masks/'
 _VALID_IMG_DIR: str = 'data/valid_images/'

@@ -9,13 +9,6 @@ class DiceLoss(nn.Module):
 
     def forward(self, prediction, target):
 
-        # flat_predicted = y_pred.view(-1)
-        # flat_gt = y_true.view(-1)
-        # intersection = torch.sum(flat_predicted * flat_gt)
-        #
-        # return 1.0 - ((2. * intersection + self.smooth) /
-        #             (torch.sum(flat_predicted) + torch.sum(flat_gt) + self.smooth))
-
         prediction = prediction.contiguous()
         target = target.contiguous()
 
@@ -23,7 +16,8 @@ class DiceLoss(nn.Module):
 
         loss = (1 - ((2. * intersection + self.smooth) / (
                     prediction.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + self.smooth)))
+        score = loss.mean()
 
-        return loss.mean()
+        return score
 
 
