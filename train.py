@@ -16,10 +16,10 @@ import os
 import torch.onnx
 
 # Hyperparameters
-_LEARNING_RATE: float = 0.0001
+_LEARNING_RATE: float = 0.00001
 _DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-_LOSS: str = 'dice'
-# _LOSS: str = 'mse'
+# _LOSS: str = 'dice'
+_LOSS: str = 'mse'
 # _LOSS = 'cross_entropy'
 # _LOSS: str = 'bce'
 _BATCH_SIZE: int = 16
@@ -28,8 +28,9 @@ _NUM_WORKERS: int = 2
 _IMAGE_HEIGHT: int = 224
 _IMAGE_WIDTH: int = 224
 _LOAD_MODEL: bool = True
-_NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_dice_483.pth.tar"
-# _NAME_OF_LOAD_MODEL: str = "my_checkpointdice547.pth.tar"
+# _NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_mse_51.pth.tar"
+_NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_mse_135.pth.tar"
+# _NAME_OF_LOAD_MODEL: str = "my_model_checkpoint_dice_382.pth.tar"
 _TRAIN_IMG_DIR: str = 'data/train_images/'
 _TRAIN_MASK_DIR: str = 'data/train_masks/'
 _VALID_IMG_DIR: str = 'data/valid_images/'
@@ -76,6 +77,7 @@ elif _LOSS == 'cross_entropy':
     criterion = nn.CrossEntropyLoss()
 elif _LOSS == 'mse':
     criterion = nn.MSELoss()
+
 else:
     raise "Loss not defined"
 
@@ -101,7 +103,7 @@ for epoch in range(_NUM_EPOCHS):
     for index, data in enumerate(loop):
         input_data, targets = data
 
-        if epoch == 20:
+        if epoch == 200:
             edit_optimizer(optimizer, lr=0.00001)
 
         input_data = input_data.to(device=_DEVICE)
@@ -143,6 +145,15 @@ for epoch in range(_NUM_EPOCHS):
     if avg_val_loss < the_best_loss:
         the_best_loss = avg_val_loss
         # if epoch % 1 == 0:
+        checkpoint = {
+            "state_dict": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+        }
+        save_checkpoint(state=checkpoint, model=model, device=_DEVICE, loss=_LOSS, epoch=epoch,
+                        folder_save_model=".//saved_models//", filename="best_my_model_checkpoint")
+
+
+    if epoch % 1 == 0:
         checkpoint = {
             "state_dict": model.state_dict(),
             "optimizer": optimizer.state_dict(),
