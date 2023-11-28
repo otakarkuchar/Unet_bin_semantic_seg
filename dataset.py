@@ -7,6 +7,7 @@ import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
+import torchvision
 
 
 class CloudDataset(Dataset):
@@ -32,21 +33,28 @@ class CloudDataset(Dataset):
         # CLEAR 0 R, CLOUD 1 G, CLOUD_SHADOW 2 B - consider CLOUD_SHADOW as CLEAR.
         mask_gt = np.zeros((mask_raw.shape[0], mask_raw.shape[1]), dtype=np.float32)
         mask_gt[np.where(mask_raw[:, :, 1])] = 1.0
+        mask_show = mask_gt
 
         image_normalized = cv2.normalize(image_raw[:,:,:3], None, alpha=0, beta=1,
                                        norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # image_normalized = image_raw[:,:,:3]
 
         image_selected_norm = np.zeros((image_raw.shape[0], image_raw.shape[1], 4), dtype=np.float32)
         image_selected_norm[:, :, :3] = image_normalized[:, :, :3]
         image_selected_norm[:, :, 3] = image_raw[:, :, 7]
+        show_orig = image_selected_norm[:, :, :3]
 
         if self.is_trained:
             train_transform = A.Compose(
                     [
                         A.Resize(height=self.image_height, width=self.image_width),
-                        A.Rotate(limit=35, p=0.5),
-                        A.HorizontalFlip(p=0.5),
-                        A.VerticalFlip(p=0.5),
+                        # A.Rotate(limit=35, p=0.5),
+                        # # A.GridDistortion(p=0.5),
+                        # A.Transpose(p=0.5),
+                        # A.OneOf([
+                        #     A.HorizontalFlip(p=0.5),
+                        #     A.VerticalFlip(p=0.5),
+                        #     ], p=0.5),
                         ToTensorV2(),
                     ],
                 )
@@ -63,5 +71,18 @@ class CloudDataset(Dataset):
             image_selected_norm = augmented['image']
             mask_gt = augmented['mask']
             mask_gt = mask_gt.unsqueeze(0)
+
+
+
+            # fig, ax = plt.subplots(2, 2, figsize=(15, 8))
+            # ax[0, 0].imshow(image_selected_norm[:3, :, :].permute(1, 2, 0).cpu().detach().numpy())
+            # ax[0, 0].set_title('Image after augmentation')
+            # ax[0, 1].imshow(mask_gt[0].cpu().detach().numpy())
+            # ax[0, 1].set_title('Mask after augmentation')
+            # ax[1, 0].imshow(show_orig)
+            # ax[1, 0].set_title('Image before augmentation')
+            # ax[1, 1].imshow(mask_show)
+            # plt.show()
+
 
         return image_selected_norm, mask_gt

@@ -61,7 +61,7 @@ def dice(prediction: np.ndarray, target: np.ndarray, smooth=1.) -> float:
 
 
 def show_results_or_save(show_original_img: np.ndarray, target_mask: np.ndarray, output: np.ndarray,
-                 i: int, idx_batch: int) -> None:
+                 i: int, idx_batch: int, dice: float = None) -> None:
     """
     Show results of inference
     :param show_original_img: original image
@@ -69,6 +69,7 @@ def show_results_or_save(show_original_img: np.ndarray, target_mask: np.ndarray,
     :param output: output from model
     :param i: index of image in batch
     :param idx_batch: index of batch
+    :param dice: dice score
     :return: None
     """
     fig, ax = plt.subplots(1, 3)
@@ -81,6 +82,8 @@ def show_results_or_save(show_original_img: np.ndarray, target_mask: np.ndarray,
     for a in ax:
         a.set_xticks([])
         a.set_yticks([])
+    if dice is not None:
+        ax[2].set_xlabel(f"Dice score: {dice:.3f}")
 
     if _SAVE_RESULTS:
         if not os.path.exists("results"):
@@ -120,7 +123,7 @@ def run_inference(test_loader: object) -> None:
             show_original_img = np.transpose(input_data[i][:3], (1, 2, 0))
 
             if _IMSHOW_RESULTS or _SAVE_RESULTS:
-                show_results_or_save(show_original_img, target_mask, output, i, idx_batch)
+                show_results_or_save(show_original_img, target_mask, output, i, idx_batch, dice(output, target_mask))
 
             if _VERBOSE_METRICS:
                 dice_score = dice(output, target_mask)

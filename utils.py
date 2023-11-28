@@ -77,9 +77,8 @@ def dice(target, prediction, smooth = 1.) -> float:
     intersection = (prediction * target).sum(dim=2).sum(dim=2)
 
     loss = (2. * intersection + smooth) / (prediction.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + smooth)
-    score = loss.mean()
-
-    return score
+    loss = loss.cpu().detach().numpy()
+    return loss.mean()
 
 def jacard_similarity(target, prediction) -> float:
     """
@@ -131,21 +130,21 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
             x = (x > 0.5).float()
 
             dice_coef = dice(target, x, smooth=1.)
-            dice_score_dataset += dice_coef
+            dice_score_dataset += dice_coef*len(x)
             acuracy = accuracy(target, x)
             accuracy_dataset += acuracy
             jacaard_similarity = jacard_similarity(target, x)
             jacaaard_similarity_dataset += jacaard_similarity
 
             print(f' Metrics for images batch of images n.{idx} |'
-                  f'epoch = {epoch:d}| accuracy = {acuracy:.5f}, dice = {dice_coef:.5f} '
+                  f'epoch = {epoch:d}| accuracy = {acuracy:.5f}, dice = {dice_coef.mean():.5f} '
                   f'jacaard_similarity = {jacaard_similarity:.5f}')
 
             # compute accuracy for all images in batch
             num_correct += (x == target).sum()
             num_pixels += torch.numel(x)
 
-        print(f' Mean of metrics  | dice = {dice_score_dataset/len(loader):.5f}, '
+        print(f'Mean of metrics | dice = {dice_score_dataset/len(loader.dataset):.5f} '
               f'accuracy = {accuracy_dataset/len(loader):.5f}, '
               f'jacaard_similarity = {jacaaard_similarity_dataset/len(loader):.5f}')
 
@@ -156,7 +155,7 @@ def check_accuracy(loader, model, criterion, device="cuda", epoch=0, num_epochs=
         avg_val_loss = val_loss / len(loader)
 
     model.train()
-    return avg_val_loss, valid_losses
+    return avg_val_loss, valid_losses,
 
 def save_predictions_as_images(loader, model, folder="saved_images/", epoch=0, device="cuda") -> None:
     """
@@ -220,9 +219,9 @@ def train_val_loss_as_graph(avg_train_loss, avg_val_loss, train_losses, val_loss
     plt.grid(True)
     plt.tight_layout()
 
-    if not os.path.exists('.//loses//'):
-        os.mkdir('.//loses//')
-    plt.savefig(f'.//loses//combined_loss_{epoch}.png')
+    if not os.path.exists('.//Loss as graph//'):
+        os.mkdir('.//Loss as graph//')
+    plt.savefig(f'.//Loss as graph//combined_loss_{epoch}.png')
     plt.close()
 
     print(f'Epoch [{epoch}/{num_epochs}], '

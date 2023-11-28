@@ -6,7 +6,7 @@ from torch.nn.functional import relu
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=2):
+    def __init__(self, in_channels=4, out_channels=1):
         super().__init__()
 
         # Encoder
